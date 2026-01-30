@@ -1,0 +1,10 @@
+/* Reuse same styles as Login */
+@import "./Login.css";
+
+.headingsignup {
+  color: red;
+}
+/* 
+.auth-container {
+  background-color: blue;
+} */
