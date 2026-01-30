@@ -15,7 +15,7 @@ export default function Login() {
     e.preventDefault();
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        "https://backend-5bm0.onrender.com/api/auth/login",
         form,
       );
       localStorage.setItem("token", res.data.token);
