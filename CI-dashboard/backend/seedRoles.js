@@ -1,10 +1,7 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-const roleSchema = new mongoose.Schema({
-  name: String,
-});
-
+const roleSchema = new mongoose.Schema({ name: String });
 const Role = mongoose.model("Role", roleSchema);
 
 const INITIAL_ROLES = [
