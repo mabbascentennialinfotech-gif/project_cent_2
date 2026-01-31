@@ -8,11 +8,16 @@ const authRoutes = require("./routes/auth")
 
 
 const app = express();
-
 app.use(cors({
-  origin: '*', // allow all domains (or put your frontend domain after deployment)
-  credentials: true
+  origin: [
+    "https://jobportal.centennialinfotech.com", // deployed frontend
+    "http://localhost:5173"                     // local dev frontend
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
 
 app.use(express.json());
 
