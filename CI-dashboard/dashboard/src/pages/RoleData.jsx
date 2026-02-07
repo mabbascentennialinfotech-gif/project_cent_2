@@ -5,6 +5,7 @@ function RoleData({
   scheduleData,
   filteredEmployees,
   openEditCell,
+  openAcModal,
   restrictedRoles = [],
 }) {
   const [copiedCell, setCopiedCell] = useState(null);
@@ -33,80 +34,130 @@ function RoleData({
               cellData?.role && restrictedRoles.includes(cellData.role);
             const isGreen = cellData?.status === "green";
             const isRed = cellData?.status === "red";
+            const isBlue = cellData?.status === "blue";
             const cellKey = `${rowIndex}-${emp._id}`;
             const showCopied = copiedCell === cellKey;
 
-            return (
-              <div
-                key={emp._id}
-                className={`grid-cell ${row.type === "AC" ? "ac-row" : ""} ${cellClass}`}
-                onClick={() => openEditCell(rowIndex, emp._id)}
-                style={{ position: "relative", cursor: "pointer" }}
-                title={isRestricted ? "Blocked / Restricted" : ""}
-              >
-                {cellData ? (
-                  <>
-                    {cellData.role && <span>{cellData.role}</span>}
-                    {cellData.value !== undefined && (
-                      <span>{cellData.value}</span>
-                    )}
-                  </>
-                ) : (
-                  <span className="empty-cell">-</span>
-                )}
+            // For DATE cells - show role with edit overlay
+            if (row.type === "DATE") {
+              return (
+                <div
+                  key={emp._id}
+                  className={`grid-cell ${cellClass}`}
+                  onClick={() => openEditCell(rowIndex, emp._id)}
+                  style={{ position: "relative", cursor: "pointer" }}
+                  title={isRestricted ? "Blocked / Restricted" : ""}
+                >
+                  {cellData ? (
+                    <>
+                      {cellData.role && <span>{cellData.role}</span>}
+                      {cellData.value !== undefined && (
+                        <span>{cellData.value}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="empty-cell">-</span>
+                  )}
 
-                {isGreen && isRestricted && (
-                  <Lock
-                    size={12}
-                    style={{ position: "absolute", top: "5px", right: "5px" }}
-                  />
-                )}
+                  {isGreen && isRestricted && (
+                    <Lock
+                      size={12}
+                      style={{ position: "absolute", top: "5px", right: "5px" }}
+                    />
+                  )}
 
-                {(isGreen || isRed) && cellData?.role && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "3px",
-                      left: "3px",
-                      zIndex: 20,
-                      cursor: "pointer",
-                      backgroundColor: "rgba(255,255,255,0.7)",
-                      borderRadius: "3px",
-                      padding: "1px 3px",
-                    }}
-                    onClick={(e) =>
-                      handleCopy(e, rowIndex, emp._id, cellData.role)
-                    }
-                  >
-                    <Copy size={14} color="#000" />
+                  {(isGreen || isRed) && cellData?.role && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "3px",
+                        left: "3px",
+                        zIndex: 20,
+                        cursor: "pointer",
+                        backgroundColor: "rgba(255,255,255,0.7)",
+                        borderRadius: "3px",
+                        padding: "1px 3px",
+                      }}
+                      onClick={(e) =>
+                        handleCopy(e, rowIndex, emp._id, cellData.role)
+                      }
+                    >
+                      <Copy size={14} color="#000" />
+                    </div>
+                  )}
+
+                  {showCopied && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        backgroundColor: "rgba(0,0,0,0.7)",
+                        color: "#fff",
+                        fontSize: "10px",
+                        padding: "2px 4px",
+                        borderRadius: "3px",
+                        pointerEvents: "none",
+                        zIndex: 30,
+                      }}
+                    >
+                      Copied!
+                    </div>
+                  )}
+
+                  <div className="cell-edit-overlay">
+                    <Edit2 size={16} />
                   </div>
-                )}
-
-                {showCopied && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      transform: "translate(-50%, -50%)",
-                      backgroundColor: "rgba(0,0,0,0.7)",
-                      color: "#fff",
-                      fontSize: "10px",
-                      padding: "2px 4px",
-                      borderRadius: "3px",
-                      pointerEvents: "none",
-                      zIndex: 30,
-                    }}
-                  >
-                    Copied!
-                  </div>
-                )}
-
-                <div className="cell-edit-overlay">
-                  <Edit2 size={16} />
                 </div>
-              </div>
-            );
+              );
+            }
+            // For AC cells - show number in cell with same color styling
+            else if (row.type === "AC") {
+              return (
+                <div
+                  key={emp._id}
+                  className={`grid-cell ${cellClass} ac-row`}
+                  onClick={() => openAcModal(rowIndex, emp._id)}
+                  style={{
+                    position: "relative",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  title="Click to edit AC value"
+                >
+                  {cellData?.value ? (
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: isGreen
+                          ? "#10b981"
+                          : isRed
+                            ? "#ef4444"
+                            : isBlue
+                              ? "#3b82f6"
+                              : "#059669",
+                      }}
+                    >
+                      {cellData.value}
+                    </span>
+                  ) : (
+                    <span className="empty-cell" style={{ color: "#9ca3af" }}>
+                      -
+                    </span>
+                  )}
+
+                  <div className="cell-edit-overlay">
+                    <Edit2 size={16} />
+                  </div>
+                </div>
+              );
+            }
+
+            return null;
           })}
         </React.Fragment>
       ))}

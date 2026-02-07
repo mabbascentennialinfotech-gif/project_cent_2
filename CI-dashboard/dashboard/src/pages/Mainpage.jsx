@@ -18,7 +18,9 @@ function Mainpage() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAcModalOpen, setIsAcModalOpen] = useState(false); // NEW: AC modal state
   const [editingCell, setEditingCell] = useState(null);
+  const [editingAcCell, setEditingAcCell] = useState(null); // NEW: AC cell editing state
   const [error, setError] = useState("");
   const [restrictedRoles, setRestrictedRoles] = useState([]);
 
@@ -126,7 +128,7 @@ function Mainpage() {
     emp.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  // --- Open Cell Modal ---
+  // --- Open Cell Modal (for DATE cells only) ---
   const openEditCell = (rowIndex, empId) => {
     const row = scheduleData[rowIndex];
     const cell = row.cells[empId] || {};
@@ -142,7 +144,21 @@ function Mainpage() {
     setIsEditModalOpen(true);
   };
 
-  // --- Save Cell ---
+  // --- Open AC Modal (for AC cells only) ---
+  const openAcModal = (rowIndex, empId) => {
+    const row = scheduleData[rowIndex];
+    const cell = row.cells[empId] || {};
+    setEditingAcCell({
+      rowIndex,
+      empId,
+      value: cell.value || "",
+      type: row.type,
+    });
+    setError("");
+    setIsAcModalOpen(true);
+  };
+
+  // --- Save Cell (for DATE cells) ---
   const handleSaveCell = async () => {
     if (!editingCell) return;
     setError("");
@@ -223,7 +239,93 @@ function Mainpage() {
     }
   };
 
-  // --- Delete Cell ---
+  // --- Save AC Value ---
+  const handleSaveAcValue = async () => {
+    if (!editingAcCell) return;
+    setError("");
+
+    // Find the day for this AC row (AC row is always after DATE row)
+    const dateRow = scheduleData[editingAcCell.rowIndex - 1];
+    if (!dateRow || dateRow.type !== "DATE") return;
+
+    const day = dateRow.date;
+    const monthKey = `${selectedYear}-${selectedMonth + 1}`;
+    const date = new Date(selectedYear, selectedMonth, day);
+    date.setHours(12, 0, 0, 0);
+
+    try {
+      const response = await fetch(`${API_URL}/assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          monthYear: monthKey,
+          day,
+          type: "AC",
+          employeeId: editingAcCell.empId,
+          value: editingAcCell.value || "0",
+          date: date.toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+      if (data.message) setError(data.message);
+
+      // Update local state
+      const newScheduleData = [...scheduleData];
+      const cell =
+        newScheduleData[editingAcCell.rowIndex].cells[editingAcCell.empId] ||
+        {};
+      newScheduleData[editingAcCell.rowIndex].cells[editingAcCell.empId] = {
+        ...cell,
+        value: editingAcCell.value,
+      };
+      setScheduleData(newScheduleData);
+
+      setIsAcModalOpen(false);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // --- Delete AC Value ---
+  const handleDeleteAcValue = async () => {
+    if (!editingAcCell) return;
+    setError("");
+
+    // Find the day for this AC row (AC row is always after DATE row)
+    const dateRow = scheduleData[editingAcCell.rowIndex - 1];
+    if (!dateRow || dateRow.type !== "DATE") return;
+
+    const day = dateRow.date;
+    const monthKey = `${selectedYear}-${selectedMonth + 1}`;
+
+    try {
+      const response = await fetch(`${API_URL}/assignments`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          monthYear: monthKey,
+          day,
+          type: "AC",
+          employeeId: editingAcCell.empId,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.message) setError(data.message);
+
+      // Update local state
+      const newScheduleData = [...scheduleData];
+      delete newScheduleData[editingAcCell.rowIndex].cells[editingAcCell.empId];
+      setScheduleData(newScheduleData);
+
+      setIsAcModalOpen(false);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // --- Delete Cell (for DATE cells) ---
   const handleDeleteCell = async () => {
     if (!editingCell) return;
     setError("");
@@ -343,18 +445,19 @@ function Mainpage() {
           <DateAndEmployee
             filteredEmployees={filteredEmployees}
             openEditCell={openEditCell}
-            handleDeleteEmployee={handleDeleteEmployee} // ADDED HERE
+            handleDeleteEmployee={handleDeleteEmployee}
           />
           <RoleData
             scheduleData={scheduleData}
             filteredEmployees={filteredEmployees}
             openEditCell={openEditCell}
+            openAcModal={openAcModal} // NEW: Pass AC modal function
             restrictedRoles={restrictedRoles}
           />
         </main>
       </div>
 
-      {/* Edit Cell Modal */}
+      {/* Edit Cell Modal (for DATE cells) */}
       {isEditModalOpen && editingCell && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -365,7 +468,7 @@ function Mainpage() {
                 marginBottom: "1rem",
               }}
             >
-              <h2>Edit Cell</h2>
+              <h2>Edit Job Data</h2>
               <X
                 className="action-icon"
                 onClick={() => setIsEditModalOpen(false)}
@@ -402,7 +505,7 @@ function Mainpage() {
             </div>
             <div className="modal-actions">
               <button className="btn btn-danger" onClick={handleDeleteCell}>
-                <Trash2 size={16} /> Delete
+                <Trash2 size={16} /> Delete Data
               </button>
               <button
                 className="btn btn-secondary"
@@ -411,6 +514,60 @@ function Mainpage() {
                 Cancel
               </button>
               <button className="btn btn-primary" onClick={handleSaveCell}>
+                <Save size={16} /> Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AC Value Modal (for AC cells) */}
+      {isAcModalOpen && editingAcCell && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "1.5rem",
+              }}
+            >
+              <h2>Edit Job Data</h2>
+              <X
+                className="action-icon"
+                onClick={() => setIsAcModalOpen(false)}
+              />
+            </div>
+            <div className="form-group">
+              <label>AC Value</label>
+              <input
+                type="number"
+                value={editingAcCell.value || ""}
+                onChange={(e) =>
+                  setEditingAcCell({ ...editingAcCell, value: e.target.value })
+                }
+                placeholder="Enter AC value"
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  fontSize: "16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  marginTop: "8px",
+                }}
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-danger" onClick={handleDeleteAcValue}>
+                <Trash2 size={16} /> Delete Data
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setIsAcModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveAcValue}>
                 <Save size={16} /> Save
               </button>
             </div>
