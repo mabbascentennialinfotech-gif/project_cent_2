@@ -7,6 +7,7 @@ exports.getAssignments = async (req, res) => {
     const { monthYear } = req.params;
     const assignments = await Assignment.find({ monthYear });
     res.json(assignments);
+    console.log('hey')
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error fetching assignments" });
@@ -260,3 +261,5 @@ exports.deleteAssignment = async (req, res) => {
     res.status(500).json({ message: "Error deleting assignment" });
   }
 };
+
+
