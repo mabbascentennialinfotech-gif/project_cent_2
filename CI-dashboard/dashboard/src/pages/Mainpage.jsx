@@ -14,22 +14,28 @@ function Mainpage() {
   const [employees, setEmployees] = useState([]);
   const [roles, setRoles] = useState([]);
   const [scheduleData, setScheduleData] = useState([]);
+  const [nextMonthData, setNextMonthData] = useState([]);
+  const [prevMonthData, setPrevMonthData] = useState([]); // ✅ FIXED: Added missing state
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isAcModalOpen, setIsAcModalOpen] = useState(false); // NEW: AC modal state
+  const [isAcModalOpen, setIsAcModalOpen] = useState(false);
   const [editingCell, setEditingCell] = useState(null);
-  const [editingAcCell, setEditingAcCell] = useState(null); // NEW: AC cell editing state
+  const [editingAcCell, setEditingAcCell] = useState(null);
   const [error, setError] = useState("");
   const [restrictedRoles, setRestrictedRoles] = useState([]);
-
-  // Button states
   const [searchQuery, setSearchQuery] = useState("");
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isViewAdminsModalOpen, setIsViewAdminsModalOpen] = useState(false);
   const [isEditAdminModalOpen, setIsEditAdminModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // ✅ GLOBAL DATE TRACKING - Starts from Jan 1
+  const [globalStartDate, setGlobalStartDate] = useState(() => {
+    const date = new Date(selectedYear, 0, 1);
+    return date.getTime();
+  });
 
   const monthNames = [
     "January",
@@ -74,7 +80,7 @@ function Mainpage() {
     fetchRoles();
   }, []);
 
-  // --- Fetch Assignments ---
+  // --- Fetch Current Month Assignments ---
   useEffect(() => {
     async function fetchAssignments() {
       try {
@@ -123,10 +129,202 @@ function Mainpage() {
     fetchAssignments();
   }, [selectedMonth, selectedYear]);
 
+  // ✅ Fetch Next Month's Assignments (when needed)
+  useEffect(() => {
+    async function fetchNextMonthAssignments() {
+      const nextMonth = selectedMonth === 11 ? 0 : selectedMonth + 1;
+      const nextYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
+
+      try {
+        const monthKey = `${nextYear}-${nextMonth + 1}`;
+        const res = await fetch(`${API_URL}/assignments/${monthKey}`);
+        const assignments = await res.json();
+
+        const daysInMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
+        const newGrid = [];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateCells = {};
+          const acCells = {};
+          assignments
+            .filter((a) => a.day === d)
+            .forEach((a) => {
+              if (a.type === "DATE")
+                dateCells[a.employeeId] = {
+                  role: a.role,
+                  status: a.status,
+                  restricted: a.restricted || false,
+                };
+              else if (a.type === "AC")
+                acCells[a.employeeId] = { value: a.value };
+            });
+          newGrid.push({ type: "DATE", date: d, cells: dateCells });
+          newGrid.push({ type: "AC", label: "AC", cells: acCells });
+        }
+        setNextMonthData(newGrid);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Only fetch if we might need next month's data
+    const startDate = new Date(globalStartDate);
+    const startDay = startDate.getDate();
+    if (startDay > 24) {
+      fetchNextMonthAssignments();
+    }
+  }, [selectedMonth, selectedYear, globalStartDate]);
+
+  // ✅ Fetch Previous Month's Assignments (when needed)
+  useEffect(() => {
+    async function fetchPrevMonthAssignments() {
+      const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+      const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+
+      try {
+        const monthKey = `${prevYear}-${prevMonth + 1}`;
+        const res = await fetch(`${API_URL}/assignments/${monthKey}`);
+        const assignments = await res.json();
+
+        const daysInMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+        const newGrid = [];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateCells = {};
+          const acCells = {};
+          assignments
+            .filter((a) => a.day === d)
+            .forEach((a) => {
+              if (a.type === "DATE")
+                dateCells[a.employeeId] = {
+                  role: a.role,
+                  status: a.status,
+                  restricted: a.restricted || false,
+                };
+              else if (a.type === "AC")
+                acCells[a.employeeId] = { value: a.value };
+            });
+          newGrid.push({ type: "DATE", date: d, cells: dateCells });
+          newGrid.push({ type: "AC", label: "AC", cells: acCells });
+        }
+        setPrevMonthData(newGrid);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Only fetch if we might need previous month's data
+    const startDate = new Date(globalStartDate);
+    const startDay = startDate.getDate();
+    if (startDay < 8) {
+      fetchPrevMonthAssignments();
+    }
+  }, [selectedMonth, selectedYear, globalStartDate]);
+
   // Filter employees based on search
   const filteredEmployees = employees.filter((emp) =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  // ✅ ALWAYS SHOW 8 CONSECUTIVE DAYS - Takes from next/prev month when needed
+  const displayedScheduleData = [];
+
+  if (scheduleData.length > 0) {
+    const startDate = new Date(globalStartDate);
+
+    // Always show exactly 8 days
+    for (let i = 0; i < 8; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+
+      const currentDay = currentDate.getDate();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+
+      // Case 1: Date is in current month
+      if (currentMonth === selectedMonth && currentYear === selectedYear) {
+        const dayIndex = (currentDay - 1) * 2;
+        if (scheduleData[dayIndex]) {
+          displayedScheduleData.push(scheduleData[dayIndex]);
+          displayedScheduleData.push(scheduleData[dayIndex + 1]);
+        } else {
+          // Empty day
+          displayedScheduleData.push(
+            { type: "DATE", date: currentDay, cells: {} },
+            { type: "AC", label: "AC", cells: {} },
+          );
+        }
+      }
+
+      // Case 2: Date is in next month
+      else if (currentMonth > selectedMonth || currentYear > selectedYear) {
+        const dayIndex = (currentDay - 1) * 2;
+        if (nextMonthData[dayIndex]) {
+          displayedScheduleData.push(nextMonthData[dayIndex]);
+          displayedScheduleData.push(nextMonthData[dayIndex + 1]);
+        } else {
+          // Empty day in next month
+          displayedScheduleData.push(
+            { type: "DATE", date: currentDay, cells: {} },
+            { type: "AC", label: "AC", cells: {} },
+          );
+        }
+      }
+
+      // Case 3: Date is in previous month
+      else {
+        const dayIndex = (currentDay - 1) * 2;
+        if (prevMonthData[dayIndex]) {
+          displayedScheduleData.push(prevMonthData[dayIndex]);
+          displayedScheduleData.push(prevMonthData[dayIndex + 1]);
+        } else {
+          // Empty day in previous month
+          displayedScheduleData.push(
+            { type: "DATE", date: currentDay, cells: {} },
+            { type: "AC", label: "AC", cells: {} },
+          );
+        }
+      }
+    }
+  }
+
+  // ✅ NEXT 8 DAYS - Moves forward 8 days, auto-switches month
+  const handleNext8Days = () => {
+    setGlobalStartDate((prev) => {
+      const nextDate = new Date(prev);
+      nextDate.setDate(nextDate.getDate() + 8);
+
+      // Auto-switch month if needed
+      if (
+        nextDate.getMonth() !== selectedMonth ||
+        nextDate.getFullYear() !== selectedYear
+      ) {
+        setSelectedMonth(nextDate.getMonth());
+        setSelectedYear(nextDate.getFullYear());
+      }
+
+      return nextDate.getTime();
+    });
+  };
+
+  // ✅ PREV 8 DAYS - Moves backward 8 days, auto-switches month
+  const handlePrev8Days = () => {
+    setGlobalStartDate((prev) => {
+      const prevDate = new Date(prev);
+      prevDate.setDate(prevDate.getDate() - 8);
+
+      // Auto-switch month if needed
+      if (
+        prevDate.getMonth() !== selectedMonth ||
+        prevDate.getFullYear() !== selectedYear
+      ) {
+        setSelectedMonth(prevDate.getMonth());
+        setSelectedYear(prevDate.getFullYear());
+      }
+
+      return prevDate.getTime();
+    });
+  };
 
   // --- Open Cell Modal (for DATE cells only) ---
   const openEditCell = (rowIndex, empId) => {
@@ -194,7 +392,6 @@ function Mainpage() {
       const data = await response.json();
       if (data.message) setError(data.message);
 
-      // refresh assignments
       const res2 = await fetch(`${API_URL}/assignments/${monthKey}`);
       const assignments = await res2.json();
 
@@ -244,7 +441,6 @@ function Mainpage() {
     if (!editingAcCell) return;
     setError("");
 
-    // Find the day for this AC row (AC row is always after DATE row)
     const dateRow = scheduleData[editingAcCell.rowIndex - 1];
     if (!dateRow || dateRow.type !== "DATE") return;
 
@@ -270,7 +466,6 @@ function Mainpage() {
       const data = await response.json();
       if (data.message) setError(data.message);
 
-      // Update local state
       const newScheduleData = [...scheduleData];
       const cell =
         newScheduleData[editingAcCell.rowIndex].cells[editingAcCell.empId] ||
@@ -292,7 +487,6 @@ function Mainpage() {
     if (!editingAcCell) return;
     setError("");
 
-    // Find the day for this AC row (AC row is always after DATE row)
     const dateRow = scheduleData[editingAcCell.rowIndex - 1];
     if (!dateRow || dateRow.type !== "DATE") return;
 
@@ -314,7 +508,6 @@ function Mainpage() {
       const data = await response.json();
       if (data.message) setError(data.message);
 
-      // Update local state
       const newScheduleData = [...scheduleData];
       delete newScheduleData[editingAcCell.rowIndex].cells[editingAcCell.empId];
       setScheduleData(newScheduleData);
@@ -354,7 +547,6 @@ function Mainpage() {
       const data = await response.json();
       if (data.message) setError(data.message);
 
-      // refresh assignments
       const res2 = await fetch(`${API_URL}/assignments/${monthKey}`);
       const assignments = await res2.json();
 
@@ -427,6 +619,8 @@ function Mainpage() {
         setIsModalOpen={setIsModalOpen}
         formattedDate={`${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`}
         dayName={now.toLocaleDateString("en-US", { weekday: "long" })}
+        onNext8Days={handleNext8Days}
+        onPrev8Days={handlePrev8Days}
       />
 
       {error && (
@@ -448,16 +642,16 @@ function Mainpage() {
             handleDeleteEmployee={handleDeleteEmployee}
           />
           <RoleData
-            scheduleData={scheduleData}
+            scheduleData={displayedScheduleData}
             filteredEmployees={filteredEmployees}
             openEditCell={openEditCell}
-            openAcModal={openAcModal} // NEW: Pass AC modal function
+            openAcModal={openAcModal}
             restrictedRoles={restrictedRoles}
           />
         </main>
       </div>
 
-      {/* Edit Cell Modal (for DATE cells) */}
+      {/* Edit Cell Modal */}
       {isEditModalOpen && editingCell && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -521,7 +715,7 @@ function Mainpage() {
         </div>
       )}
 
-      {/* AC Value Modal (for AC cells) */}
+      {/* AC Value Modal */}
       {isAcModalOpen && editingAcCell && (
         <div className="modal-overlay">
           <div className="modal-content">
