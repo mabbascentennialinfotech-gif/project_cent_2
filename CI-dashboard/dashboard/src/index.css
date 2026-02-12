@@ -1,6 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap");
 
-:root {
+/* :root {
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --accent-blue: #3b82f6;
@@ -13,6 +13,19 @@
   --border-color: #334155;
   --glass-bg: rgba(30, 41, 59, 0.7);
   --glass-border: rgba(255, 255, 255, 0.1);
+} */
+
+:root {
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+
+  --accent-blue: #1e3a8a;
+  --accent-blue-soft: #e0e7ff;
+
+  --text-primary: #020617;
+  --text-secondary: #475569;
+
+  --border-color: #e5e7eb;
 }
 
 * {
@@ -64,7 +77,7 @@ body {
   top: 0;
   left: 0;
   z-index: 100;
-  background: rgba(15, 23, 42, 0.82);
+  background: rgb(9, 3, 90);
   backdrop-filter: blur(16px);
   padding: 0.75rem 2rem;
   border-bottom: 1px solid var(--border-color);
@@ -98,13 +111,13 @@ body {
 .full-date {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: whitesmoke;
 }
 
 .day-name {
   font-size: 0.7rem;
   font-weight: 800;
-  color: var(--accent-blue);
+  color: white;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -131,7 +144,7 @@ body {
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  color: white !important;
+  color: black !important;
   /* Force visibility */
   min-height: 80px;
 }
@@ -144,7 +157,7 @@ body {
 }
 
 .grid-header.employee-name {
-  color: white !important;
+  color: black !important;
   min-width: 220px;
   background-color: var(--bg-secondary) !important;
   /* Ensure solid background */
@@ -184,8 +197,8 @@ body {
   font-size: 0.75rem;
   padding: 0.25rem 0.6rem;
   border-radius: 20px;
-  background: var(--accent-blue);
-  color: white;
+  background: var(--accent-blue-soft);
+  color: black;
 }
 
 /* Rows */
@@ -227,7 +240,7 @@ body {
 }
 
 .grid-cell:hover .cell-edit-overlay {
-  opacity: 1;
+  opacity: 2;
 }
 
 .grid-cell.date-label {
@@ -251,17 +264,17 @@ body {
 
 /* Status colors */
 .cell-red {
-  background: rgba(239, 68, 68, 0.1) !important;
-  border-left: 4px solid var(--accent-red);
+  background: rgb(235, 199, 199) !important;
+  border-left: 4px solid rgb(125, 1, 1);
 }
 
 .cell-green {
-  background: rgba(34, 197, 94, 0.1) !important;
-  border-left: 4px solid var(--accent-green);
+  background: rgb(193, 229, 193) !important;
+  border-left: 4px solid rgb(2, 108, 2);
 }
 
 .cell-blue {
-  background: rgba(59, 130, 246, 0.1) !important;
+  background: rgb(188, 188, 226) !important;
   border-left: 4px solid var(--accent-blue);
 }
 
@@ -335,7 +348,7 @@ body {
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background: rgba(15, 23, 42, 0.5);
-  color: white;
+  color: black;
   outline: none;
   font-family: inherit;
 }
@@ -375,8 +388,8 @@ body {
 }
 
 .btn-secondary {
-  background: transparent;
-  color: var(--text-secondary);
+  background: var(--text-secondary);
+  color: white;
   border: 1px solid var(--border-color);
 }
 
@@ -464,56 +477,4 @@ body {
 .copy-cell-btn:hover {
   background: var(--accent-blue) !important;
   color: white !important;
-}
-.blocked-cell {
-  opacity: 0.6;
-  background-color: rgba(239, 68, 68, 0.1) !important;
-  cursor: not-allowed !important;
-}
-
-.blocked-cell:hover {
-  background-color: rgba(239, 68, 68, 0.15) !important;
-}
-
-.blocked-overlay {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  color: #ef4444;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-  padding: 2px;
-}
-
-/* Active Green Role Styling */
-.active-green-cell {
-  border-left: 4px solid #10b981 !important;
-  background: rgba(16, 185, 129, 0.05) !important;
-}
-
-.active-green-cell:hover {
-  background: rgba(16, 185, 129, 0.1) !important;
-}
-
-.active-role-indicator {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
-  border-radius: 50%;
-  padding: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-}
-
-.cell-green.active-green-cell {
-  /* Override existing green cell styles for active ones */
-  background: linear-gradient(
-    135deg,
-    rgba(16, 185, 129, 0.15),
-    rgba(16, 185, 129, 0.25)
-  ) !important;
 }

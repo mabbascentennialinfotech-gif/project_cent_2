@@ -58,7 +58,7 @@ function Navbar({
           display: "flex",
           alignItems: "center",
           gap: "0.5rem",
-          background: "var(--bg-secondary)",
+          background: "darkblue",
           padding: "0.4rem 1rem",
           borderRadius: "12px",
           border: "1px solid var(--border-color)",
@@ -94,7 +94,7 @@ function Navbar({
             <option
               key={m}
               value={i}
-              style={{ background: "var(--bg-secondary)" }}
+              style={{ background: "var(--accent-blue)" }}
             >
               {m}
             </option>
@@ -116,7 +116,7 @@ function Navbar({
             <option
               key={y}
               value={y}
-              style={{ background: "var(--bg-secondary)" }}
+              style={{ background: "var(--accent-blue)" }}
             >
               {y}
             </option>
