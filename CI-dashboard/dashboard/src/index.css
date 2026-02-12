@@ -26,6 +26,9 @@
   --text-secondary: #475569;
 
   --border-color: #e5e7eb;
+
+  --accent-red: #dc2626; /* ADD THIS */
+  --accent-green: #16a34a; /* optional if needed */
 }
 
 * {
