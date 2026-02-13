@@ -38,56 +38,13 @@ function Navbar({
   setIsModalOpen,
   formattedDate,
   dayName,
-  onNext8Days,
-  onPrev8Days, // ✅ NEW PROP
 }) {
   return (
     <header className="dashboard-header">
-      <div
-        className="logo-section"
-        style={{ display: "flex", alignItems: "center", gap: "12px" }}
-      >
+      <div className="logo-section">
         <h1>
           Centennial <span>Infotech</span>
         </h1>
-
-        {/* ✅ PREV 8 DAYS BUTTON */}
-        <button
-          onClick={onPrev8Days}
-          style={{
-            padding: "6px 12px",
-            backgroundColor: "#4b5563",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontSize: "13px",
-            fontWeight: "500",
-          }}
-          onMouseOver={(e) => (e.target.style.backgroundColor = "#374151")}
-          onMouseOut={(e) => (e.target.style.backgroundColor = "#4b5563")}
-        >
-          ← Prev 8 Days
-        </button>
-
-        {/* ✅ NEXT 8 DAYS BUTTON */}
-        <button
-          onClick={onNext8Days}
-          style={{
-            padding: "6px 12px",
-            backgroundColor: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontSize: "13px",
-            fontWeight: "500",
-          }}
-          onMouseOver={(e) => (e.target.style.backgroundColor = "#1d4ed8")}
-          onMouseOut={(e) => (e.target.style.backgroundColor = "#2563eb")}
-        >
-          Next 8 Days →
-        </button>
       </div>
 
       <div className="date-display">

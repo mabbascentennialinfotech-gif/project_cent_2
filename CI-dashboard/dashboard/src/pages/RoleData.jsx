@@ -66,7 +66,7 @@ function RoleData({
                     />
                   )}
 
-                  {(isGreen || isRed) && cellData?.role && (
+                  {(isGreen || isRed || isBlue) && cellData?.role && (
                     <div
                       style={{
                         position: "absolute",

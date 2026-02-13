@@ -27,66 +27,80 @@ exports.saveAssignment = async (req, res) => {
       const sevenDaysAgo = new Date(newDate);
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-      // 1️⃣ Check SAME EMPLOYEE first
-      const selfRecent = await Assignment.findOne({
-        role,
-        type: "DATE",
-        employeeId,
-        date: { $gte: sevenDaysAgo, $lte: newDate },
-      }).sort({ date: -1 });
-
-      if (selfRecent) {
-        const diffDays = Math.floor(
-          (newDate - new Date(selfRecent.date)) /
-          (1000 * 60 * 60 * 24)
-        );
-        const daysLeft = 7 - diffDays;
-
-        const emp = await Employee.findById(employeeId);
-        const name = emp ? emp.name : "this staff";
-
-        return res.status(400).json({
-          message: `Cannot assign — already assigned to ${name}. Please wait ${daysLeft} days.`
-        });
-      }
-
-      // 2️⃣ Check OTHER EMPLOYEES
-      const otherRecent = await Assignment.findOne({
-        role,
-        type: "DATE",
-        employeeId: { $ne: employeeId },
-        date: { $gte: sevenDaysAgo, $lte: newDate },
-      }).sort({ date: -1 });
-
-      if (otherRecent) {
-        const diffDays = Math.floor(
-          (newDate - new Date(otherRecent.date)) /
-          (1000 * 60 * 60 * 24)
-        );
-        const daysLeft = 7 - diffDays;
-
-        const emp = await Employee.findById(otherRecent.employeeId);
-        const name = emp ? emp.name : "another staff";
-
-        return res.status(400).json({
-          message: `Cannot assign — already assigned to ${name}. Please wait ${daysLeft} days.`
-        });
-      }
-
-      // 3️⃣ Block same role on same day for different employee
+      // Check if this is an update to an existing cell (same employee, same day)
       const existingToday = await Assignment.findOne({
         monthYear,
         day,
         type: "DATE",
-        role,
+        employeeId,
       });
 
-      if (existingToday && existingToday.employeeId !== employeeId) {
-        const emp = await Employee.findById(existingToday.employeeId);
-        const name = emp ? emp.name : "another staff";
-        return res.status(400).json({
-          message: `Cannot assign — already assigned to ${name}`
+      // If it's the same employee updating their own cell on the same day, allow it
+      if (existingToday && existingToday.employeeId === employeeId) {
+        // Allow update - proceed to save
+      } else {
+        // 1️⃣ Check SAME EMPLOYEE first (for new assignments or different day)
+        const selfRecent = await Assignment.findOne({
+          role,
+          type: "DATE",
+          employeeId,
+          date: { $gte: sevenDaysAgo, $lte: newDate },
+        }).sort({ date: -1 });
+
+        if (selfRecent) {
+          const diffDays = Math.floor(
+            (newDate - new Date(selfRecent.date)) /
+            (1000 * 60 * 60 * 24)
+          );
+          const daysLeft = 7 - diffDays;
+
+          const emp = await Employee.findById(employeeId);
+          const name = emp ? emp.name : "this staff";
+
+          return res.status(400).json({
+            message: `Cannot assign — already assigned to ${name}. Please wait ${daysLeft} days.`
+          });
+        }
+
+        // 2️⃣ Check OTHER EMPLOYEES
+        const otherRecent = await Assignment.findOne({
+          role,
+          type: "DATE",
+          employeeId: { $ne: employeeId },
+          date: { $gte: sevenDaysAgo, $lte: newDate },
+        }).sort({ date: -1 });
+
+        if (otherRecent) {
+          const diffDays = Math.floor(
+            (newDate - new Date(otherRecent.date)) /
+            (1000 * 60 * 60 * 24)
+          );
+          const daysLeft = 7 - diffDays;
+
+          const emp = await Employee.findById(otherRecent.employeeId);
+          const name = emp ? emp.name : "another staff";
+
+          return res.status(400).json({
+            message: `Cannot assign — already assigned to ${name}. Please wait ${daysLeft} days.`
+          });
+        }
+
+        // 3️⃣ Block same role on same day for different employee
+        const sameDayOther = await Assignment.findOne({
+          monthYear,
+          day,
+          type: "DATE",
+          role,
+          employeeId: { $ne: employeeId }
         });
+
+        if (sameDayOther) {
+          const emp = await Employee.findById(sameDayOther.employeeId);
+          const name = emp ? emp.name : "another staff";
+          return res.status(400).json({
+            message: `Cannot assign — already assigned to ${name}`
+          });
+        }
       }
 
       // 4️⃣ Save assignment
