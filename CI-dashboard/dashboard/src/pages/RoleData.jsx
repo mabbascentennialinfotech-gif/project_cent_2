@@ -7,7 +7,7 @@ function RoleData({
   openEditCell,
   openAcModal,
   restrictedRoles = [],
-  currentUserId, // NEW: Pass the current logged-in user ID
+  currentUserId,
 }) {
   const [copiedCell, setCopiedCell] = useState(null);
 
@@ -39,9 +39,6 @@ function RoleData({
             const cellKey = `${rowIndex}-${emp._id}`;
             const showCopied = copiedCell === cellKey;
 
-            // NEW: Check if this cell belongs to the CURRENT logged-in user
-            const isCurrentUserCell = emp._id === currentUserId;
-
             // For DATE cells - show role with edit overlay
             if (row.type === "DATE") {
               return (
@@ -70,28 +67,50 @@ function RoleData({
                     />
                   )}
 
-                  {/* UPDATED: Copy icon ONLY shows for current user's OWN cells */}
-                  {(isGreen || isRed || isBlue) &&
-                    cellData?.role &&
-                    isCurrentUserCell && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "3px",
-                          left: "3px",
-                          zIndex: 20,
-                          cursor: "pointer",
-                          backgroundColor: "rgba(255,255,255,0.7)",
-                          borderRadius: "3px",
-                          padding: "1px 3px",
-                        }}
-                        onClick={(e) =>
-                          handleCopy(e, rowIndex, emp._id, cellData.role)
-                        }
-                      >
-                        <Copy size={14} color="#000" />
-                      </div>
-                    )}
+                  {/* RED cells - ALWAYS show copy for everyone */}
+                  {isRed && cellData?.role && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "3px",
+                        left: "3px",
+                        zIndex: 20,
+                        cursor: "pointer",
+                        backgroundColor: "rgba(255,255,255,0.7)",
+                        borderRadius: "3px",
+                        padding: "1px 3px",
+                      }}
+                      onClick={(e) =>
+                        handleCopy(e, rowIndex, emp._id, cellData.role)
+                      }
+                    >
+                      <Copy size={14} color="#000" />
+                    </div>
+                  )}
+
+                  {/* GREEN cells - ALWAYS show copy for everyone */}
+                  {isGreen && cellData?.role && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "3px",
+                        left: "3px",
+                        zIndex: 20,
+                        cursor: "pointer",
+                        backgroundColor: "rgba(255,255,255,0.7)",
+                        borderRadius: "3px",
+                        padding: "1px 3px",
+                      }}
+                      onClick={(e) =>
+                        handleCopy(e, rowIndex, emp._id, cellData.role)
+                      }
+                    >
+                      <Copy size={14} color="#000" />
+                    </div>
+                  )}
+
+                  {/* BLUE cells - NO COPY OPTION AT ALL - COMPLETELY REMOVED */}
+                  {/* Nothing renders for blue cells */}
 
                   {showCopied && (
                     <div
@@ -119,7 +138,7 @@ function RoleData({
                 </div>
               );
             }
-            // For AC cells - show number in cell with same color styling
+            // For AC cells - show number in cell
             else if (row.type === "AC") {
               return (
                 <div
