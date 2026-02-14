@@ -39,18 +39,54 @@ exports.saveAssignment = async (req, res) => {
       if (existingToday && existingToday.employeeId === employeeId) {
         // Allow update - proceed to save
       } else {
-        // Check for existing assignment in the last 7 days
+        // Check for existing assignment on the SAME DAY for a DIFFERENT employee
+        const sameDayDifferentPerson = await Assignment.findOne({
+          monthYear,
+          day,
+          type: "DATE",
+          role,
+          employeeId: { $ne: employeeId }
+        });
+
+        if (sameDayDifferentPerson) {
+          const emp = await Employee.findById(sameDayDifferentPerson.employeeId);
+          const name = emp ? emp.name : "another staff";
+
+          // RULE 1: If existing person has RED, allow ANYONE to take ANY COLOR on same day
+          if (sameDayDifferentPerson.status === "red") {
+            // COMPLETE FREEDOM FOR RED! Anyone can take any color when existing is RED
+            console.log(`RED holder allows anyone to take any color on same day`);
+
+            // We DO NOT delete the old RED - multiple REDs allowed!
+            // Just proceed to save the new assignment
+          }
+          // RULE 2: If existing person has GREEN, block anyone else from taking it
+          else if (sameDayDifferentPerson.status === "green") {
+            return res.status(400).json({
+              message: `Cannot assign — ${name} has this role as GREEN 🟢 (occupied). Only RED holders allow sharing.`
+            });
+          }
+          // RULE 3: If existing person has BLUE, block everyone
+          else if (sameDayDifferentPerson.status === "blue") {
+            return res.status(400).json({
+              message: `Cannot assign — ${name} has this role as BLUE 🔵. BLUE blocks everyone for 7 days.`
+            });
+          }
+        }
+
+        // Check for existing assignment in the last 7 days (for 7-day rule)
         const recentAssignment = await Assignment.findOne({
           role,
           type: "DATE",
           date: { $gte: sevenDaysAgo, $lte: newDate },
+          employeeId: { $ne: employeeId } // Exclude current employee
         }).sort({ date: -1 });
 
         if (recentAssignment) {
-          // RULE: RED and GREEN can freely interchange - NO RESTRICTIONS!
+          // RULE: RED and GREEN can freely interchange across days - NO RESTRICTIONS!
           if ((status === "red" || status === "green") &&
             (recentAssignment.status === "red" || recentAssignment.status === "green")) {
-            // Allow ANY combination of RED and GREEN
+            // Allow ANY combination of RED and GREEN across different days
             console.log(`${recentAssignment.status}→${status} assignment allowed within 7 days`);
           }
           // RULE: Any rule involving BLUE is BLOCKED for 7 days
@@ -77,23 +113,6 @@ exports.saveAssignment = async (req, res) => {
               message: message
             });
           }
-        }
-
-        // Check for same role on same day for different employee
-        const sameDayOther = await Assignment.findOne({
-          monthYear,
-          day,
-          type: "DATE",
-          role,
-          employeeId: { $ne: employeeId }
-        });
-
-        if (sameDayOther) {
-          const emp = await Employee.findById(sameDayOther.employeeId);
-          const name = emp ? emp.name : "another staff";
-          return res.status(400).json({
-            message: `Cannot assign — already assigned to ${name}`
-          });
         }
       }
 
