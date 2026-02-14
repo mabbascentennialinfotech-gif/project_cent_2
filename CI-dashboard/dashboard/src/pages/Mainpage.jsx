@@ -25,6 +25,9 @@ function Mainpage() {
   const [restrictedRoles, setRestrictedRoles] = useState([]);
   const [warningMessage, setWarningMessage] = useState("");
 
+  // NEW: State for current logged-in user
+  const [currentUser, setCurrentUser] = useState(null);
+
   // Button states
   const [searchQuery, setSearchQuery] = useState("");
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -46,6 +49,19 @@ function Mainpage() {
     "November",
     "December",
   ];
+
+  // NEW: Fetch current user from localStorage on component mount
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setCurrentUser(user);
+      } catch (err) {
+        console.error("Error parsing user from localStorage:", err);
+      }
+    }
+  }, []);
 
   // --- Fetch Employees ---
   useEffect(() => {
@@ -464,6 +480,7 @@ function Mainpage() {
             openEditCell={openEditCell}
             openAcModal={openAcModal}
             restrictedRoles={restrictedRoles}
+            currentUserId={currentUser?._id} // NEW: Pass current user ID to RoleData
           />
         </main>
       </div>
