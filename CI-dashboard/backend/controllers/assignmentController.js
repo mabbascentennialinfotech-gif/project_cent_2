@@ -24,9 +24,6 @@ exports.saveAssignment = async (req, res) => {
     // ===== DATE TYPE LOGIC =====
     if (type === "DATE" && role) {
 
-      const sevenDaysAgo = new Date(newDate);
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-
       // Check if this is an update to an existing cell (same employee, same day)
       const existingToday = await Assignment.findOne({
         monthYear,
@@ -56,64 +53,20 @@ exports.saveAssignment = async (req, res) => {
           if (sameDayDifferentPerson.status === "red") {
             // COMPLETE FREEDOM FOR RED! Anyone can take any color when existing is RED
             console.log(`RED holder allows anyone to take any color on same day`);
-
-            // We DO NOT delete the old RED - multiple REDs allowed!
-            // Just proceed to save the new assignment
+            // Proceed to save the new assignment
           }
-          // RULE 2: If existing person has GREEN, block anyone else from taking it
-          else if (sameDayDifferentPerson.status === "green") {
+          // RULE 2: If existing person has GREEN or BLUE, block anyone else from taking it on same day
+          else if (sameDayDifferentPerson.status === "green" || sameDayDifferentPerson.status === "blue") {
+            const colorEmoji = sameDayDifferentPerson.status === "green" ? "GREEN 🟢" : "BLUE 🔵";
             return res.status(400).json({
-              message: `Cannot assign — ${name} has this role as GREEN 🟢 (occupied). Only RED holders allow sharing.`
-            });
-          }
-          // RULE 3: If existing person has BLUE, block everyone
-          else if (sameDayDifferentPerson.status === "blue") {
-            return res.status(400).json({
-              message: `Cannot assign — ${name} has this role as BLUE 🔵. BLUE blocks everyone for 7 days.`
+              message: `Cannot assign — ${name} has this role as ${colorEmoji} (occupied). Only RED holders allow sharing on same day.`
             });
           }
         }
 
-        // Check for existing assignment in the last 7 days (for 7-day rule)
-        const recentAssignment = await Assignment.findOne({
-          role,
-          type: "DATE",
-          date: { $gte: sevenDaysAgo, $lte: newDate },
-          employeeId: { $ne: employeeId } // Exclude current employee
-        }).sort({ date: -1 });
-
-        if (recentAssignment) {
-          // RULE: RED and GREEN can freely interchange across days - NO RESTRICTIONS!
-          if ((status === "red" || status === "green") &&
-            (recentAssignment.status === "red" || recentAssignment.status === "green")) {
-            // Allow ANY combination of RED and GREEN across different days
-            console.log(`${recentAssignment.status}→${status} assignment allowed within 7 days`);
-          }
-          // RULE: Any rule involving BLUE is BLOCKED for 7 days
-          else if (status === "blue" || recentAssignment.status === "blue") {
-            const diffDays = Math.floor(
-              (newDate - new Date(recentAssignment.date)) /
-              (1000 * 60 * 60 * 24)
-            );
-            const daysLeft = 7 - diffDays;
-
-            const emp = await Employee.findById(recentAssignment.employeeId);
-            const name = emp ? emp.name : "another staff";
-
-            let message = "";
-            if (status === "blue" && recentAssignment.status === "blue") {
-              message = `Cannot assign BLUE — already assigned as BLUE 🔵 to ${name}. Please wait ${daysLeft} days.`;
-            } else if (status === "blue") {
-              message = `Cannot assign BLUE — role was assigned as ${recentAssignment.status === "red" ? "RED 🔴" : "GREEN 🟢"} to ${name}. Please wait ${daysLeft} days.`;
-            } else {
-              message = `Cannot assign ${status === "red" ? "RED" : "GREEN"} — role was assigned as BLUE 🔵 to ${name}. Please wait ${daysLeft} days.`;
-            }
-
-            return res.status(400).json({
-              message: message
-            });
-          }
-        }
+        // NO 7-DAY RESTRICTION FOR ANY COLOR!
+        // All colors (RED, GREEN, BLUE) can be assigned freely across different days
+        // Only same-day restrictions apply based on the rules above
       }
 
       // Save assignment
