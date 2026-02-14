@@ -39,53 +39,47 @@ exports.saveAssignment = async (req, res) => {
       if (existingToday && existingToday.employeeId === employeeId) {
         // Allow update - proceed to save
       } else {
-        // 1️⃣ Check SAME EMPLOYEE first (for new assignments or different day)
-        const selfRecent = await Assignment.findOne({
+        // Check for existing assignment in the last 7 days
+        const recentAssignment = await Assignment.findOne({
           role,
           type: "DATE",
-          employeeId,
           date: { $gte: sevenDaysAgo, $lte: newDate },
         }).sort({ date: -1 });
 
-        if (selfRecent) {
-          const diffDays = Math.floor(
-            (newDate - new Date(selfRecent.date)) /
-            (1000 * 60 * 60 * 24)
-          );
-          const daysLeft = 7 - diffDays;
+        if (recentAssignment) {
+          // RULE: RED and GREEN can freely interchange - NO RESTRICTIONS!
+          if ((status === "red" || status === "green") &&
+            (recentAssignment.status === "red" || recentAssignment.status === "green")) {
+            // Allow ANY combination of RED and GREEN
+            console.log(`${recentAssignment.status}→${status} assignment allowed within 7 days`);
+          }
+          // RULE: Any rule involving BLUE is BLOCKED for 7 days
+          else if (status === "blue" || recentAssignment.status === "blue") {
+            const diffDays = Math.floor(
+              (newDate - new Date(recentAssignment.date)) /
+              (1000 * 60 * 60 * 24)
+            );
+            const daysLeft = 7 - diffDays;
 
-          const emp = await Employee.findById(employeeId);
-          const name = emp ? emp.name : "this staff";
+            const emp = await Employee.findById(recentAssignment.employeeId);
+            const name = emp ? emp.name : "another staff";
 
-          return res.status(400).json({
-            message: `Cannot assign — already assigned to ${name}. Please wait ${daysLeft} days.`
-          });
+            let message = "";
+            if (status === "blue" && recentAssignment.status === "blue") {
+              message = `Cannot assign BLUE — already assigned as BLUE 🔵 to ${name}. Please wait ${daysLeft} days.`;
+            } else if (status === "blue") {
+              message = `Cannot assign BLUE — role was assigned as ${recentAssignment.status === "red" ? "RED 🔴" : "GREEN 🟢"} to ${name}. Please wait ${daysLeft} days.`;
+            } else {
+              message = `Cannot assign ${status === "red" ? "RED" : "GREEN"} — role was assigned as BLUE 🔵 to ${name}. Please wait ${daysLeft} days.`;
+            }
+
+            return res.status(400).json({
+              message: message
+            });
+          }
         }
 
-        // 2️⃣ Check OTHER EMPLOYEES
-        const otherRecent = await Assignment.findOne({
-          role,
-          type: "DATE",
-          employeeId: { $ne: employeeId },
-          date: { $gte: sevenDaysAgo, $lte: newDate },
-        }).sort({ date: -1 });
-
-        if (otherRecent) {
-          const diffDays = Math.floor(
-            (newDate - new Date(otherRecent.date)) /
-            (1000 * 60 * 60 * 24)
-          );
-          const daysLeft = 7 - diffDays;
-
-          const emp = await Employee.findById(otherRecent.employeeId);
-          const name = emp ? emp.name : "another staff";
-
-          return res.status(400).json({
-            message: `Cannot assign — already assigned to ${name}. Please wait ${daysLeft} days.`
-          });
-        }
-
-        // 3️⃣ Block same role on same day for different employee
+        // Check for same role on same day for different employee
         const sameDayOther = await Assignment.findOne({
           monthYear,
           day,
@@ -103,7 +97,7 @@ exports.saveAssignment = async (req, res) => {
         }
       }
 
-      // 4️⃣ Save assignment
+      // Save assignment
       const updateData = {
         role,
         status,
