@@ -36,6 +36,32 @@ exports.saveAssignment = async (req, res) => {
       if (existingToday && existingToday.employeeId === employeeId) {
         // Allow update - proceed to save
       } else {
+        // NEW RULE: Check if SAME PERSON is trying to assign BLUE again within 7 days
+        if (status === "blue") {
+          const sevenDaysAgo = new Date(newDate);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+          const recentBlueSelf = await Assignment.findOne({
+            role,
+            type: "DATE",
+            employeeId,
+            status: "blue",
+            date: { $gte: sevenDaysAgo, $lte: newDate }
+          }).sort({ date: -1 });
+
+          if (recentBlueSelf) {
+            const diffDays = Math.floor(
+              (newDate - new Date(recentBlueSelf.date)) /
+              (1000 * 60 * 60 * 24)
+            );
+            const daysLeft = 7 - diffDays;
+
+            return res.status(400).json({
+              message: `Cannot assign BLUE again — you already had this role as BLUE recently. `
+            });
+          }
+        }
+
         // Check for existing assignment on the SAME DAY for a DIFFERENT employee
         const sameDayDifferentPerson = await Assignment.findOne({
           monthYear,
@@ -64,9 +90,9 @@ exports.saveAssignment = async (req, res) => {
           }
         }
 
-        // NO 7-DAY RESTRICTION FOR ANY COLOR!
-        // All colors (RED, GREEN, BLUE) can be assigned freely across different days
-        // Only same-day restrictions apply based on the rules above
+        // NO 7-DAY RESTRICTION FOR ANY OTHER COLOR COMBINATIONS!
+        // Only BLUE self-assignment has 7-day restriction
+        // Everything else is allowed across different days
       }
 
       // Save assignment
