@@ -50,14 +50,11 @@ exports.saveAssignment = async (req, res) => {
           }).sort({ date: -1 });
 
           if (recentRedSelf) {
-            const diffDays = Math.floor(
-              (newDate - new Date(recentRedSelf.date)) /
-              (1000 * 60 * 60 * 24)
-            );
-            const daysLeft = 7 - diffDays;
+            const emp = await Employee.findById(employeeId);
+            const name = emp ? emp.name : "this user";
 
             return res.status(400).json({
-              message: `Cannot assign RED again — you already had this role as RED recently. Please wait ${daysLeft} more days.`
+              message: `Cannot assign RED again ${name}`
             });
           }
         }
@@ -73,14 +70,11 @@ exports.saveAssignment = async (req, res) => {
           }).sort({ date: -1 });
 
           if (recentGreenSelf) {
-            const diffDays = Math.floor(
-              (newDate - new Date(recentGreenSelf.date)) /
-              (1000 * 60 * 60 * 24)
-            );
-            const daysLeft = 7 - diffDays;
+            const emp = await Employee.findById(employeeId);
+            const name = emp ? emp.name : "this user";
 
             return res.status(400).json({
-              message: `Cannot assign GREEN again — you already had this role as GREEN recently. Please wait ${daysLeft} more days.`
+              message: `Cannot assign GREEN again — you already to ${name}`
             });
           }
         }
@@ -96,26 +90,22 @@ exports.saveAssignment = async (req, res) => {
           }).sort({ date: -1 });
 
           if (recentBlueSelf) {
-            const diffDays = Math.floor(
-              (newDate - new Date(recentBlueSelf.date)) /
-              (1000 * 60 * 60 * 24)
-            );
-            const daysLeft = 7 - diffDays;
+            const emp = await Employee.findById(employeeId);
+            const name = emp ? emp.name : "this user";
 
             return res.status(400).json({
-              message: `Cannot assign BLUE again — you already had this role as BLUE recently. Please wait ${daysLeft} more days.`
+              message: `Cannot assign BLUE again — already assigned to ${name}`
             });
           }
         }
 
         // RULE 4: Check if SAME PERSON is trying to assign BLUE after having RED or GREEN within 7 days
-        // If status is BLUE, check if they had ANY color (RED or GREEN) in last 7 days
         if (status === "blue") {
           const recentAnyColorSelf = await Assignment.findOne({
             role,
             type: "DATE",
             employeeId,
-            status: { $in: ["red", "green"] }, // Check for RED or GREEN
+            status: { $in: ["red", "green"] },
             date: { $gte: sevenDaysAgo, $lte: newDate }
           }).sort({ date: -1 });
 
@@ -155,9 +145,8 @@ exports.saveAssignment = async (req, res) => {
           }
           // RULE 6: If existing person has GREEN or BLUE, block anyone else from taking it on same day
           else if (sameDayDifferentPerson.status === "green" || sameDayDifferentPerson.status === "blue") {
-            const colorEmoji = sameDayDifferentPerson.status === "green" ? "GREEN 🟢" : "BLUE 🔵";
             return res.status(400).json({
-              message: `Cannot assign — ${name} has this role as ${colorEmoji} (occupied). Only RED holders allow sharing on same day.`
+              message: `Cannot assign Today Already assigned to ${name}`
             });
           }
         }
