@@ -24,6 +24,20 @@ exports.saveAssignment = async (req, res) => {
     // ===== DATE TYPE LOGIC =====
     if (type === "DATE" && role) {
 
+      // FIX: Calculate date range properly using UTC to avoid month boundary issues
+      const endDate = new Date(newDate);
+      endDate.setHours(23, 59, 59, 999); // End of the target day
+
+      const startDate = new Date(newDate);
+      startDate.setDate(startDate.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0); // Start of 7 days ago
+
+      // Also get the previous month's monthYear for cross-month queries
+      const currentDate = new Date(newDate);
+      const prevMonthDate = new Date(currentDate);
+      prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+      const prevMonthYear = `${prevMonthDate.getFullYear()}-${prevMonthDate.getMonth() + 1}`;
+
       // Check if this is an update to an existing cell (same employee, same day)
       const existingToday = await Assignment.findOne({
         monthYear,
@@ -32,131 +46,181 @@ exports.saveAssignment = async (req, res) => {
         employeeId,
       });
 
-      // If it's the same employee updating their own cell on the same day, allow it
-      if (existingToday && existingToday.employeeId === employeeId) {
-        // Allow update - proceed to save
-      } else {
-        const sevenDaysAgo = new Date(newDate);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      // ============================================
+      // STEP 1: CHECK SAME DAY - OTHER EMPLOYEES
+      // ============================================
 
-        // RULE 1: Check if SAME PERSON is trying to assign RED again within 7 days
-        if (status === "red") {
-          const recentRedSelf = await Assignment.findOne({
-            role,
-            type: "DATE",
-            employeeId,
-            status: "red",
-            date: { $gte: sevenDaysAgo, $lte: newDate }
-          }).sort({ date: -1 });
+      // Check for existing assignment on the SAME DAY for a DIFFERENT employee
+      const sameDayDifferentPerson = await Assignment.findOne({
+        monthYear,
+        day,
+        type: "DATE",
+        role,
+        employeeId: { $ne: employeeId }
+      });
 
-          if (recentRedSelf) {
-            const emp = await Employee.findById(employeeId);
-            const name = emp ? emp.name : "this user";
+      if (sameDayDifferentPerson) {
+        const emp = await Employee.findById(sameDayDifferentPerson.employeeId);
+        const name = emp ? emp.name : "another staff";
 
-            return res.status(400).json({
-              message: `Cannot assign RED again ${name}`
-            });
-          }
-        }
-
-        // RULE 2: Check if SAME PERSON is trying to assign GREEN again within 7 days
-        if (status === "green") {
-          const recentGreenSelf = await Assignment.findOne({
-            role,
-            type: "DATE",
-            employeeId,
-            status: "green",
-            date: { $gte: sevenDaysAgo, $lte: newDate }
-          }).sort({ date: -1 });
-
-          if (recentGreenSelf) {
-            const emp = await Employee.findById(employeeId);
-            const name = emp ? emp.name : "this user";
-
-            return res.status(400).json({
-              message: `Cannot assign GREEN again — you already to ${name}`
-            });
-          }
-        }
-
-        // RULE 3: Check if SAME PERSON is trying to assign BLUE again within 7 days (BLUE → BLUE)
-        if (status === "blue") {
-          const recentBlueSelf = await Assignment.findOne({
-            role,
-            type: "DATE",
-            employeeId,
-            status: "blue",
-            date: { $gte: sevenDaysAgo, $lte: newDate }
-          }).sort({ date: -1 });
-
-          if (recentBlueSelf) {
-            const emp = await Employee.findById(employeeId);
-            const name = emp ? emp.name : "this user";
-
-            return res.status(400).json({
-              message: `Cannot assign BLUE again — already assigned to ${name}`
-            });
-          }
-        }
-
-        // RULE 4: Check if SAME PERSON is trying to assign BLUE after having RED or GREEN within 7 days
-        if (status === "blue") {
-          const recentAnyColorSelf = await Assignment.findOne({
-            role,
-            type: "DATE",
-            employeeId,
-            status: { $in: ["red", "green"] },
-            date: { $gte: sevenDaysAgo, $lte: newDate }
-          }).sort({ date: -1 });
-
-          if (recentAnyColorSelf) {
-            const diffDays = Math.floor(
-              (newDate - new Date(recentAnyColorSelf.date)) /
-              (1000 * 60 * 60 * 24)
-            );
-            const daysLeft = 7 - diffDays;
-
-            const colorEmoji = recentAnyColorSelf.status === "red" ? "RED" : "GREEN";
-
-            return res.status(400).json({
-              message: `Cannot assign BLUE — you already had this role as ${colorEmoji} recently. Please wait ${daysLeft} more days.`
-            });
-          }
-        }
-
-        // Check for existing assignment on the SAME DAY for a DIFFERENT employee
-        const sameDayDifferentPerson = await Assignment.findOne({
-          monthYear,
-          day,
-          type: "DATE",
-          role,
-          employeeId: { $ne: employeeId }
+        // KEEP THIS MESSAGE UNCHANGED
+        return res.status(400).json({
+          message: `Cannot assign already assigned to ${name}`
         });
-
-        if (sameDayDifferentPerson) {
-          const emp = await Employee.findById(sameDayDifferentPerson.employeeId);
-          const name = emp ? emp.name : "another staff";
-
-          // RULE 5: If existing person has RED, allow ANYONE to take ANY COLOR on same day
-          if (sameDayDifferentPerson.status === "red") {
-            // COMPLETE FREEDOM FOR RED! Anyone can take any color when existing is RED
-            console.log(`RED holder allows anyone to take any color on same day`);
-            // Proceed to save the new assignment
-          }
-          // RULE 6: If existing person has GREEN or BLUE, block anyone else from taking it on same day
-          else if (sameDayDifferentPerson.status === "green" || sameDayDifferentPerson.status === "blue") {
-            return res.status(400).json({
-              message: `Cannot assign Today Already assigned to ${name}`
-            });
-          }
-        }
-
-        // NO OTHER RESTRICTIONS!
-        // Different people can take any color anytime across different days
-        // RED → GREEN and GREEN → RED are always allowed for same person
       }
 
-      // Save assignment
+      // ============================================
+      // STEP 2: CHECK SAME EMPLOYEE - LAST 7 DAYS (ANY COLOR)
+      // ============================================
+
+      // FIX: Query across both current and previous month using date range
+      const recentAnyColor = await Assignment.findOne({
+        role,
+        type: "DATE",
+        employeeId,
+        date: { $gte: startDate, $lte: endDate }, // Using proper date range
+        _id: { $ne: existingToday?._id }
+      }).sort({ date: -1 });
+
+      if (recentAnyColor) {
+        const diffDays = Math.floor(
+          (endDate - new Date(recentAnyColor.date)) /
+          (1000 * 60 * 60 * 24)
+        );
+        const daysLeft = 7 - diffDays;
+
+        const emp = await Employee.findById(employeeId);
+        const name = emp ? emp.name : "this user";
+        const color = recentAnyColor.status;
+
+        // UPDATED: Generic message for any color
+        return res.status(400).json({
+          message: `Already assigned with ${color} to ${name} wait ${daysLeft} days`
+        });
+      }
+
+      // ============================================
+      // STEP 3: CHECK SAME EMPLOYEE - SPECIFIC COLOR RULES
+      // ============================================
+
+      // Check if SAME PERSON is trying to assign RED again within 7 days
+      if (status === "red") {
+        const recentRedSelf = await Assignment.findOne({
+          role,
+          type: "DATE",
+          employeeId,
+          status: "red",
+          date: { $gte: startDate, $lte: endDate },
+          _id: { $ne: existingToday?._id }
+        }).sort({ date: -1 });
+
+        if (recentRedSelf) {
+          const diffDays = Math.floor(
+            (endDate - new Date(recentRedSelf.date)) /
+            (1000 * 60 * 60 * 24)
+          );
+          const daysLeft = 7 - diffDays;
+
+          const emp = await Employee.findById(employeeId);
+          const name = emp ? emp.name : "this user";
+
+          // UPDATED: Red → Red message
+          return res.status(400).json({
+            message: `Already assigned with red to ${name} wait ${daysLeft} days`
+          });
+        }
+      }
+
+      // Check if SAME PERSON is trying to assign BLUE after having RED
+      if (status === "blue") {
+        const recentRedSelf = await Assignment.findOne({
+          role,
+          type: "DATE",
+          employeeId,
+          status: "red",
+          date: { $gte: startDate, $lte: endDate },
+          _id: { $ne: existingToday?._id }
+        }).sort({ date: -1 });
+
+        if (recentRedSelf) {
+          const diffDays = Math.floor(
+            (endDate - new Date(recentRedSelf.date)) /
+            (1000 * 60 * 60 * 24)
+          );
+          const daysLeft = 7 - diffDays;
+
+          const emp = await Employee.findById(employeeId);
+          const name = emp ? emp.name : "this user";
+
+          // UPDATED: Red → Blue message (same as Red → Red)
+          return res.status(400).json({
+            message: `Already assigned with red to ${name} wait ${daysLeft} days`
+          });
+        }
+      }
+
+      // ============================================
+      // STEP 4: CHECK ALL EMPLOYEES - LAST 7 DAYS (GLOBAL)
+      // ============================================
+
+      // For GREEN - check if ANYONE had GREEN in last 7 days
+      if (status === "green") {
+        const recentGreenAnyone = await Assignment.findOne({
+          role,
+          type: "DATE",
+          status: "green",
+          date: { $gte: startDate, $lte: endDate }, // Using proper date range
+          employeeId: { $ne: employeeId },
+          _id: { $ne: existingToday?._id }
+        });
+
+        if (recentGreenAnyone) {
+          const diffDays = Math.floor(
+            (endDate - new Date(recentGreenAnyone.date)) /
+            (1000 * 60 * 60 * 24)
+          );
+          const daysLeft = 7 - diffDays;
+
+          const emp = await Employee.findById(recentGreenAnyone.employeeId);
+          const name = emp ? emp.name : "another staff";
+
+          return res.status(400).json({
+            message: `Cannot assign already assigned to ${name} wait ${daysLeft} days`
+          });
+        }
+      }
+
+      // For BLUE - check if ANYONE had BLUE in last 7 days
+      if (status === "blue") {
+        const recentBlueAnyone = await Assignment.findOne({
+          role,
+          type: "DATE",
+          status: "blue",
+          date: { $gte: startDate, $lte: endDate }, // Using proper date range
+          employeeId: { $ne: employeeId },
+          _id: { $ne: existingToday?._id }
+        });
+
+        if (recentBlueAnyone) {
+          const diffDays = Math.floor(
+            (endDate - new Date(recentBlueAnyone.date)) /
+            (1000 * 60 * 60 * 24)
+          );
+          const daysLeft = 7 - diffDays;
+
+          const emp = await Employee.findById(recentBlueAnyone.employeeId);
+          const name = emp ? emp.name : "another staff";
+
+          return res.status(400).json({
+            message: `Cannot assign already assigned to ${name} wait ${daysLeft} days`
+          });
+        }
+      }
+
+      // ============================================
+      // STEP 5: SAVE THE ASSIGNMENT
+      // ============================================
+
       const updateData = {
         role,
         status,

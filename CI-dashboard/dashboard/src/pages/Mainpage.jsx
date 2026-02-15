@@ -25,7 +25,10 @@ function Mainpage() {
   const [restrictedRoles, setRestrictedRoles] = useState([]);
   const [warningMessage, setWarningMessage] = useState("");
 
-  // NEW: State for current logged-in user
+  // NEW: State for modal error message (appears inside modal)
+  const [modalError, setModalError] = useState("");
+
+  // State for current logged-in user
   const [currentUser, setCurrentUser] = useState(null);
 
   // Button states
@@ -50,7 +53,7 @@ function Mainpage() {
     "December",
   ];
 
-  // NEW: Fetch current user from localStorage on component mount
+  // Fetch current user from localStorage on component mount
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (userStr) {
@@ -159,6 +162,7 @@ function Mainpage() {
     });
     setError("");
     setWarningMessage("");
+    setModalError(""); // Clear modal error when opening
     setIsEditModalOpen(true);
   };
 
@@ -182,6 +186,7 @@ function Mainpage() {
     if (!editingCell) return;
     setError("");
     setWarningMessage("");
+    setModalError(""); // Clear previous modal error
 
     let day;
     if (scheduleData[editingCell.rowIndex].type === "DATE") {
@@ -215,7 +220,8 @@ function Mainpage() {
 
       if (!response.ok) {
         if (data.message) {
-          setWarningMessage(data.message);
+          // Show error inside modal instead of popup
+          setModalError(data.message);
         }
         return;
       }
@@ -480,7 +486,7 @@ function Mainpage() {
             openEditCell={openEditCell}
             openAcModal={openAcModal}
             restrictedRoles={restrictedRoles}
-            currentUserId={currentUser?._id} // NEW: Pass current user ID to RoleData
+            currentUserId={currentUser?._id}
           />
         </main>
       </div>
@@ -502,13 +508,40 @@ function Mainpage() {
                 onClick={() => setIsEditModalOpen(false)}
               />
             </div>
+
+            {/* NEW: Error message inside modal */}
+            {modalError && (
+              <div
+                style={{
+                  backgroundColor: "#fff3cd",
+                  border: "1px solid #ffeeba",
+                  color: "#856404",
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  marginBottom: "20px",
+                  fontSize: "14px",
+                  lineHeight: "1.5",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "8px",
+                }}
+              >
+                <AlertTriangle
+                  size={18}
+                  style={{ flexShrink: 0, marginTop: "2px" }}
+                />
+                <span>{modalError}</span>
+              </div>
+            )}
+
             <div className="form-group">
               <label>Role</label>
               <select
                 value={editingCell.role}
-                onChange={(e) =>
-                  setEditingCell({ ...editingCell, role: e.target.value })
-                }
+                onChange={(e) => {
+                  setEditingCell({ ...editingCell, role: e.target.value });
+                  setModalError(""); // Clear error when user changes selection
+                }}
               >
                 <option value="">-- None --</option>
                 {roles.map((r) => (
@@ -522,9 +555,10 @@ function Mainpage() {
               <label>Status</label>
               <select
                 value={editingCell.status}
-                onChange={(e) =>
-                  setEditingCell({ ...editingCell, status: e.target.value })
-                }
+                onChange={(e) => {
+                  setEditingCell({ ...editingCell, status: e.target.value });
+                  setModalError(""); // Clear error when user changes selection
+                }}
               >
                 <option value="blue">🔵 Ready</option>
                 <option value="red">🔴 Closed</option>
