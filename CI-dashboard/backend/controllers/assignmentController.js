@@ -35,7 +35,8 @@ exports.saveAssignment = async (req, res) => {
       endDate.setUTCHours(23, 59, 59, 999);
 
       const startDate = new Date(newDate);
-      startDate.setUTCDate(startDate.getUTCDate() - 6);
+      // CHANGED: from -6 to -7 for 8-day rule
+      startDate.setUTCDate(startDate.getUTCDate() - 7);
       startDate.setUTCHours(0, 0, 0, 0);
 
       // Check if this is an update to an existing cell
@@ -111,7 +112,8 @@ exports.saveAssignment = async (req, res) => {
           (endDate - new Date(recentAnyColor.date)) /
           (1000 * 60 * 60 * 24)
         );
-        const daysLeft = 7 - diffDays;
+        // CHANGED: daysLeft calculation uses 8 now (7+1)
+        const daysLeft = 8 - diffDays;
 
         const emp = await Employee.findById(employeeId);
         const name = emp ? emp.name : "this user";
@@ -142,7 +144,8 @@ exports.saveAssignment = async (req, res) => {
             (endDate - new Date(recentRedSelf.date)) /
             (1000 * 60 * 60 * 24)
           );
-          const daysLeft = 7 - diffDays;
+          // CHANGED: daysLeft calculation uses 8
+          const daysLeft = 8 - diffDays;
 
           const emp = await Employee.findById(employeeId);
           const name = emp ? emp.name : "this user";
@@ -169,7 +172,8 @@ exports.saveAssignment = async (req, res) => {
             (endDate - new Date(recentRedSelf.date)) /
             (1000 * 60 * 60 * 24)
           );
-          const daysLeft = 7 - diffDays;
+          // CHANGED: daysLeft calculation uses 8
+          const daysLeft = 8 - diffDays;
 
           const emp = await Employee.findById(employeeId);
           const name = emp ? emp.name : "this user";
@@ -200,7 +204,8 @@ exports.saveAssignment = async (req, res) => {
             (endDate - new Date(recentGreenAnyone.date)) /
             (1000 * 60 * 60 * 24)
           );
-          const daysLeft = 7 - diffDays;
+          // CHANGED: daysLeft calculation uses 8
+          const daysLeft = 8 - diffDays;
 
           const emp = await Employee.findById(recentGreenAnyone.employeeId);
           const name = emp ? emp.name : "another staff";
@@ -227,7 +232,8 @@ exports.saveAssignment = async (req, res) => {
             (endDate - new Date(recentBlueAnyone.date)) /
             (1000 * 60 * 60 * 24)
           );
-          const daysLeft = 7 - diffDays;
+          // CHANGED: daysLeft calculation uses 8
+          const daysLeft = 8 - diffDays;
 
           const emp = await Employee.findById(recentBlueAnyone.employeeId);
           const name = emp ? emp.name : "another staff";
@@ -258,7 +264,8 @@ exports.saveAssignment = async (req, res) => {
             (endDate - new Date(recentGreenAnyone.date)) /
             (1000 * 60 * 60 * 24)
           );
-          const daysLeft = 7 - diffDays;
+          // CHANGED: daysLeft calculation uses 8
+          const daysLeft = 8 - diffDays;
 
           const emp = await Employee.findById(recentGreenAnyone.employeeId);
           const name = emp ? emp.name : "another staff";
@@ -290,7 +297,8 @@ exports.saveAssignment = async (req, res) => {
             (endDate - new Date(recentBlueAnyone.date)) /
             (1000 * 60 * 60 * 24)
           );
-          const daysLeft = 7 - diffDays;
+          // CHANGED: daysLeft calculation uses 8
+          const daysLeft = 8 - diffDays;
 
           const emp = await Employee.findById(recentBlueAnyone.employeeId);
           const name = emp ? emp.name : "another staff";
