@@ -481,3 +481,24 @@ body {
   background: var(--accent-blue) !important;
   color: white !important;
 }
+
+/* ===== NEW: Fix dropdown background to white ===== */
+.modal-content select,
+.form-group select {
+  background-color: white !important;
+  color: #333333 !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.modal-content select option,
+.form-group select option {
+  background-color: white !important;
+  color: #333333 !important;
+}
+
+.modal-content select option[value=""],
+.form-group select option[value=""] {
+  background-color: white !important;
+  color: #999999 !important;
+  font-style: italic;
+}
