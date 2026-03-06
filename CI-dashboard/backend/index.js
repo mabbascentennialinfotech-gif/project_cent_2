@@ -4,13 +4,36 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
+
+/* ---------------- CORS CONFIG ---------------- */
+
+const allowedOrigins = [
+  "https://frontenddashboard-wcz6.onrender.com",
+  "https://jobportal.centennialinfotech.com"
+];
+
 app.use(cors({
-  origin: '*', // allow all domains (or put your frontend domain after deployment)
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true
 }));
+
+app.options("*", cors());
+
 app.use(express.json());
 
+/* ---------------- PORT ---------------- */
+
 const PORT = process.env.PORT || 5000;
+
+/* ---------------- DATABASE ---------------- */
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -25,9 +48,9 @@ const employeeSchema = new mongoose.Schema({
 });
 
 const assignmentSchema = new mongoose.Schema({
-  monthYear: String, // format: "2026-0"
+  monthYear: String,
   day: Number,
-  type: String, // "DATE" or "AC"
+  type: String,
   employeeId: String,
   role: String,
   status: String,
@@ -38,73 +61,122 @@ const roleSchema = new mongoose.Schema({
   name: String,
 });
 
+/* ---------------- Models ---------------- */
+
 const Employee = mongoose.model("Employee", employeeSchema);
 const Assignment = mongoose.model("Assignment", assignmentSchema);
 const Role = mongoose.model("Role", roleSchema);
 
 /* ---------------- API Routes ---------------- */
 
-// Employees
+/* Employees */
+
 app.get("/api/employees", async (req, res) => {
-  const employees = await Employee.find();
-  res.json(employees);
+  try {
+    const employees = await Employee.find();
+    res.json(employees);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/api/employees", async (req, res) => {
-  const newEmp = new Employee(req.body);
-  await newEmp.save();
-  res.json(newEmp);
+  try {
+    const newEmp = new Employee(req.body);
+    await newEmp.save();
+    res.json(newEmp);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete("/api/employees/:id", async (req, res) => {
-  await Employee.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
+  try {
+    await Employee.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Roles
+/* Roles */
+
 app.get("/api/roles", async (req, res) => {
-  const roles = await Role.find();
-  res.json(roles);
+  try {
+    const roles = await Role.find();
+    res.json(roles);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/api/roles", async (req, res) => {
-  const newRole = new Role(req.body);
-  await newRole.save();
-  res.json(newRole);
+  try {
+    const newRole = new Role(req.body);
+    await newRole.save();
+    res.json(newRole);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete("/api/roles/:id", async (req, res) => {
-  await Role.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
+  try {
+    await Role.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Assignments (Fetch by month)
+/* Assignments */
+
 app.get("/api/assignments/:monthYear", async (req, res) => {
-  const assignments = await Assignment.find({
-    monthYear: req.params.monthYear,
-  });
-  res.json(assignments);
+  try {
+    const assignments = await Assignment.find({
+      monthYear: req.params.monthYear,
+    });
+
+    res.json(assignments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Save/Update Assignment
 app.post("/api/assignments", async (req, res) => {
-  const { monthYear, day, type, employeeId, role, status, value } = req.body;
+  try {
+    const { monthYear, day, type, employeeId, role, status, value } = req.body;
 
-  const updated = await Assignment.findOneAndUpdate(
-    { monthYear, day, type, employeeId },
-    { role, status, value },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+    const updated = await Assignment.findOneAndUpdate(
+      { monthYear, day, type, employeeId },
+      { role, status, value },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
-  res.json(updated);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Delete Assignment
 app.delete("/api/assignments", async (req, res) => {
-  const { monthYear, day, type, employeeId } = req.body;
-  await Assignment.findOneAndDelete({ monthYear, day, type, employeeId });
-  res.json({ success: true });
+  try {
+    const { monthYear, day, type, employeeId } = req.body;
+
+    await Assignment.findOneAndDelete({
+      monthYear,
+      day,
+      type,
+      employeeId,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
+/* ---------------- SERVER ---------------- */
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
