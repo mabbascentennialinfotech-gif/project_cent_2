@@ -12,14 +12,11 @@ const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
-
 app.use(cors({
-  origin: [
-    "https://frontenddashboard-wcz6.onrender.com",
-    "https://jobportal.centennialinfotech.com"
-  ],
+  origin: process.env.FRONTEND_URL,
   credentials: true
 }));
+
 
 app.use(express.json());
 
