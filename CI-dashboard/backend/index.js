@@ -4,10 +4,26 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
+const allowedOrigins = [
+  "https://frontenddashboard-wcz6.onrender.com",
+  "https://jobportal.centennialinfotech.com"
+];
+
 app.use(cors({
-  origin: '*', // allow all domains (or put your frontend domain after deployment)
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true
 }));
+
+app.options("*", cors());
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
